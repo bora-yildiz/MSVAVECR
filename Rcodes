@@ -1,0 +1,46 @@
+ibrary(lavaan)
+library(semTools)
+
+
+# Creates the "usual" table
+rel <- function(object, CR = TRUE, AVE = TRUE, MSV = TRUE, HTMT = TRUE, digits) {
+  cor.lv <- data.frame(lavaan::lavInspect(object, "cor.lv"))
+  pt <- lavaan::parTable(object)[lavaan::parTable(object)$op == "=~",]
+  mtrx <- round(cor.lv, digits)
+  diag(mtrx) <- ""
+  if(HTMT) {
+    htmt  <- round(semTools::htmt(paste(pt[,"lhs"], pt[,"op"], pt[,"rhs"], sep = ""), data.frame(lavaan::lavInspect(object, "data"))), digits)
+    upper <- htmt[upper.tri(htmt)]
+  }
+  else upper <- ""
+  mtrx[upper.tri(mtrx)] <- upper
+  if(MSV) mtrx <- cbind(MSV = round(sapply(abs(cor.lv), function(x) max(x[x != max(x)])^2), digits), mtrx)
+  if(AVE) mtrx <- cbind(AVE = round(semTools::AVE(object), digits), mtrx)
+  if(CR)  mtrx <- cbind(CR = round(semTools::compRelSEM(object), digits), mtrx)
+  return(mtrx)
+}
+
+
+# Example
+pop.model <- "
+f1 =~ 1.0 * x1 + 1.0 * x2 + 1.0 * x3
+f2 =~ 1.0 * x4 + 1.0 * x5 + 1.0 * x6
+f3 =~ 1.0 * x7 + 1.0 * x8 + 1.0 * x9
+f1 ~~ 0.4 * f2
+f1 ~~ -0.3 * f3
+f2 ~~ -0.6 * f3
+"
+
+
+model <- "
+f1 =~ x1 + x2 + x3
+f2 =~ x4 + x5 + x6
+f3 =~ x7 + x8 + x9
+"
+
+set.seed(1)
+data <-  simulateData(pop.model, sample.nobs = 1000)
+
+fit <- cfa(model, data)
+
+rel(fit, CR = TRUE, AVE = TRUE, MSV = TRUE, HTMT = TRUE, digits = 3)
